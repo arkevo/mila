@@ -27,14 +27,24 @@ final class ModelManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    func test_catalog_contains_ivrit_large_as_default_selected_model() {
+    func test_catalog_defaults_to_openai_turbo_and_has_no_ivrit_model() {
         let mgr = ModelManager(modelsDirectory: tempRoot)
         XCTAssertNotNil(mgr.selectedModel())
-        XCTAssertEqual(mgr.selectedModelName, WhisperModel.ivritLarge.name,
-                       "Default selection should be the ivrit.ai large-v3 Hebrew model")
-        XCTAssertEqual(WhisperModel.all.contains { $0.name.contains("ivrit") },
-                       true,
-                       "Expected at least one ivrit.ai model in the catalog")
+        XCTAssertEqual(mgr.selectedModelName, WhisperModel.openaiTurbo.name,
+                       "Default selection should be the OpenAI large-v3-turbo model")
+        XCTAssertFalse(WhisperModel.all.contains { $0.name.contains("ivrit") },
+                       "The ivrit.ai large-v3 model must not be in the catalog — it was a 3 GB auto-download nobody could opt out of")
+    }
+
+    /// Existing users have `"ivrit-ai-whisper-large-v3"` persisted by the old
+    /// force-select-on-every-launch. The manager must never come up with a
+    /// selection naming a model it no longer knows about, or `selectedModel()`
+    /// returns nil and every "which model?" fallback in the app breaks.
+    func test_init_falls_back_to_turbo_when_persisted_selection_is_no_longer_in_catalog() {
+        UserDefaults.standard.set("ivrit-ai-whisper-large-v3", forKey: "selectedModelName")
+        let mgr = ModelManager(modelsDirectory: tempRoot)
+        XCTAssertEqual(mgr.selectedModelName, WhisperModel.openaiTurbo.name)
+        XCTAssertNotNil(mgr.selectedModel())
     }
 
     func test_models_have_consistent_metadata() {
@@ -90,22 +100,22 @@ final class ModelManagerTests: XCTestCase {
 
     func test_url_for_model_lives_under_models_directory() {
         let mgr = ModelManager(modelsDirectory: tempRoot)
-        let url = mgr.url(for: WhisperModel.ivritLarge)
+        let url = mgr.url(for: WhisperModel.openaiTurbo)
         XCTAssertEqual(url.deletingLastPathComponent().path, tempRoot.path)
-        XCTAssertEqual(url.lastPathComponent, "ivrit-ai-whisper-large-v3.bin")
+        XCTAssertEqual(url.lastPathComponent, "openai-whisper-large-v3-turbo.bin")
     }
 
     func test_install_state_reflects_files_in_directory() throws {
         let mgr = ModelManager(modelsDirectory: tempRoot)
-        XCTAssertFalse(mgr.isInstalled(.ivritLarge))
+        XCTAssertFalse(mgr.isInstalled(.openaiTurbo))
 
-        let path = mgr.url(for: .ivritLarge)
+        let path = mgr.url(for: .openaiTurbo)
         try Data("not-a-real-model".utf8).write(to: path)
         mgr.refreshInstalled()
-        XCTAssertTrue(mgr.isInstalled(.ivritLarge))
+        XCTAssertTrue(mgr.isInstalled(.openaiTurbo))
 
-        try mgr.delete(.ivritLarge)
-        XCTAssertFalse(mgr.isInstalled(.ivritLarge))
+        try mgr.delete(.openaiTurbo)
+        XCTAssertFalse(mgr.isInstalled(.openaiTurbo))
     }
 
     func test_set_selected_persists_choice() {
@@ -117,23 +127,19 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(reloaded.selectedModelName, WhisperModel.openaiTurbo.name)
     }
 
-    func test_best_model_for_language_routes_hebrew_to_ivrit() {
-        XCTAssertEqual(WhisperModel.bestModel(for: "he"), .ivritLarge)
-        XCTAssertEqual(WhisperModel.bestModel(for: "iw"), .ivritLarge)
-        XCTAssertEqual(WhisperModel.bestModel(for: "en"), .openaiTurbo)
-        XCTAssertEqual(WhisperModel.bestModel(for: "auto"), .openaiTurbo)
+    func test_best_model_routes_every_language_to_openai_turbo() {
+        for code in ["he", "he-IL", "iw", "en", "auto"] {
+            XCTAssertEqual(WhisperModel.bestModel(for: code), .openaiTurbo,
+                           "\(code) must resolve to the multilingual turbo — there is no per-language model any more")
+        }
     }
 
-    func test_model_for_language_falls_back_to_selected_when_best_not_installed() throws {
+    /// With nothing on disk `model(for:)` still has to name the turbo, so the
+    /// "model not installed" UI and the first-launch download point at the
+    /// model Hebrew will actually run on.
+    func test_model_for_hebrew_resolves_to_turbo_even_when_nothing_is_installed() {
         let mgr = ModelManager(modelsDirectory: tempRoot)
-        // Install only the OpenAI turbo, then ask for the Hebrew best model.
-        let openaiPath = mgr.url(for: .openaiTurbo)
-        try Data("not-a-real-model".utf8).write(to: openaiPath)
-        mgr.refreshInstalled()
-        mgr.setSelected(.openaiTurbo)
-
-        // Hebrew best is ivritLarge (not installed) so we should fall back.
-        let resolved = mgr.model(for: "he")
-        XCTAssertEqual(resolved, .openaiTurbo)
+        XCTAssertFalse(mgr.isInstalled(.openaiTurbo))
+        XCTAssertEqual(mgr.model(for: "he"), .openaiTurbo)
     }
 }

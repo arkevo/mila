@@ -23,7 +23,7 @@ help:
 	@echo "  release-build - Release build into $(RELEASE_DERIVED)"
 	@echo "  test          - Run the MilaTests XCTest target"
 	@echo "  run           - Build and launch the app"
-	@echo "  models        - Pre-download both ggml models into ~/Library/Application Support/Mila/Models"
+	@echo "  models        - Pre-download the default ggml model into ~/Library/Application Support/Mila/Models"
 	@echo "  models-coreml-tiny - Download ggml-tiny + sibling -encoder.mlmodelc into ~/.cache/whisper-coreml-test/ (for CI ANE verification test)"
 	@echo "  dmg           - Build a release DMG (VERSION=<x.y.z>) suitable for upload"
 	@echo "  e2e           - Run E2E transcription tests (requires ggml-tiny.bin)"
@@ -75,15 +75,11 @@ verify-ane:
 
 models:
 	@mkdir -p "$(HOME)/Library/Application Support/Mila/Models"
-	@echo "Downloading ivrit-ai/whisper-large-v3-ggml (~3GB). Press Ctrl-C to abort."
-	curl -L --fail --progress-bar \
-		"https://huggingface.co/ivrit-ai/whisper-large-v3-ggml/resolve/main/ggml-model.bin" \
-		-o "$(HOME)/Library/Application Support/Mila/Models/ivrit-ai-whisper-large-v3.bin"
 	@echo "Downloading openai/whisper-large-v3-turbo (~1.6GB). Press Ctrl-C to abort."
 	curl -L --fail --progress-bar \
 		"https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin" \
 		-o "$(HOME)/Library/Application Support/Mila/Models/openai-whisper-large-v3-turbo.bin"
-	@echo "Done. Models installed."
+	@echo "Done. Model installed."
 
 dmg: release-build
 	@./scripts/make-dmg.sh "$(RELEASE_APP)" "$(DMG)" "$(VERSION)"

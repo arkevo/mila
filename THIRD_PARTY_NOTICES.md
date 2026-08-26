@@ -59,7 +59,9 @@ These components are fetched from the upstream's own CDN or package repository w
 
 ### Whisper model weights — ivrit.ai (Apache-2.0)
 
-`ivrit-ai/whisper-large-v3-ggml` Hebrew finetune, fetched from `huggingface.co/ivrit-ai`.
+`ivrit-ai/whisper-large-v3-turbo-ct2` Hebrew finetune, served by the optional
+`docker/speaches-hebrew` image for the remote-transcription backend. The app
+itself no longer downloads any ivrit.ai weights.
 
 - Project: https://www.ivrit.ai / https://huggingface.co/ivrit-ai
 - License: Apache-2.0 (per upstream model card).

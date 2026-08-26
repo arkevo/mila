@@ -29,30 +29,12 @@ struct WhisperModel: Identifiable, Hashable, Codable {
     var coreMLSizeBytes: Int64
     var coreMLSHA256: String?
 
-    /// Hebrew default. The full ivrit.ai `large-v3` finetune (~3 GB, ~2x
-    /// slower than the turbo variant). Empirically noticeably more accurate
-    /// than the turbo finetune on Hebrew speech, which is why we ship it as
-    /// the default despite the size and latency cost.
-    static let ivritLarge = WhisperModel(
-        name: "ivrit-ai-whisper-large-v3",
-        displayName: "ivrit.ai · large-v3 (Hebrew)",
-        url: URL(string: "https://huggingface.co/ivrit-ai/whisper-large-v3-ggml/resolve/main/ggml-model.bin")!,
-        sizeBytes: 3_095_033_483,
-        sha256: "09e66ec67b2e00c6933afab6684cbf78fe023e8ad153c1848f62000e4335a07f",
-        languageHint: "he",
-        // CoreML encoder mlmodelc generated via whisper.cpp's
-        // convert-h5-to-coreml.py against the ivrit-ai HuggingFace
-        // checkpoint, hosted by us at uriharduf/whisper-large-v3-ivrit-coreml
-        // (Apache-2.0, same license as the upstream base model).
-        coreMLURL: URL(string: "https://huggingface.co/uriharduf/whisper-large-v3-ivrit-coreml/resolve/main/ivrit-ai-whisper-large-v3-encoder.mlmodelc.zip")!,
-        coreMLSizeBytes: 1_174_466_438,
-        coreMLSHA256: "a6cf2c2c88cfd011b981d0895d9a9b02db7c8475375d9b026f9cd4ab0d85ae78"
-    )
-
-    /// English (and any other multilingual) default. As of mid-2026 this is
-    /// the open-weights state of the art for English at this size class —
-    /// faster than full `large-v3` for essentially identical English WER, and
-    /// it's the same checkpoint Whisper.cpp ships by default.
+    /// The one bundled model, serving Hebrew and English alike. As of
+    /// mid-2026 this is the open-weights state of the art at this size class —
+    /// faster than full `large-v3` for essentially identical WER, and it's the
+    /// same checkpoint whisper.cpp ships by default. The ~3 GB ivrit.ai
+    /// Hebrew finetune that used to sit alongside it was removed: it doubled
+    /// the first-launch download with no way to opt out.
     static let openaiTurbo = WhisperModel(
         name: "openai-whisper-large-v3-turbo",
         displayName: "OpenAI · large-v3-turbo (English / multilingual)",
@@ -66,18 +48,14 @@ struct WhisperModel: Identifiable, Hashable, Codable {
         coreMLSHA256: "84bedfe895bd7b5de6e8e89a0803dfc5addf8c0c5bc4c937451716bf7cf7988a"
     )
 
-    static let all: [WhisperModel] = [.ivritLarge, .openaiTurbo]
+    static let all: [WhisperModel] = [.openaiTurbo]
 
     /// Pick the best model the catalog knows about for a given ISO language
-    /// code. Hebrew goes to ivrit.ai's large-v3 finetune; everything else
-    /// (including the dictation English path) goes to the OpenAI turbo.
+    /// code. With a single multilingual model in the catalog every language
+    /// resolves to the turbo; the parameter stays so callers keep routing by
+    /// the recording's language if a per-language model ever returns.
     static func bestModel(for languageCode: String) -> WhisperModel {
-        switch languageCode.lowercased() {
-        case "he", "he-il", "iw":
-            return .ivritLarge
-        default:
-            return .openaiTurbo
-        }
+        .openaiTurbo
     }
 }
 
@@ -92,8 +70,8 @@ final class ModelManager: NSObject, ObservableObject {
     /// `WhisperModel.name`. Every failure path of a multi-GB fetch used to
     /// end in a log line only — the progress row just vanished and the user
     /// had no idea whether the model installed or why it didn't. Keyed per
-    /// model (not one flat slot) because the two default models auto-download
-    /// concurrently on first launch: starting B must not wipe A's report.
+    /// model (not one flat slot) so that starting one model's download never
+    /// wipes another's report.
     /// A new attempt for a model clears only that model's entry; also
     /// dismissible from the UI.
     @Published var lastDownloadErrors: [String: String] = [:]
@@ -109,8 +87,16 @@ final class ModelManager: NSObject, ObservableObject {
 
     init(modelsDirectory: URL) {
         self.modelsDirectory = modelsDirectory
+        // A persisted name that is no longer in the catalog (e.g. the removed
+        // ivrit.ai model, which the app used to force-select on every launch)
+        // must not survive into `selectedModelName`, or `selectedModel()`
+        // returns nil and every "which model?" fallback breaks.
         let lastUsed = UserDefaults.standard.string(forKey: "selectedModelName")
-        self.selectedModelName = lastUsed ?? WhisperModel.ivritLarge.name
+        if let lastUsed, WhisperModel.all.contains(where: { $0.name == lastUsed }) {
+            self.selectedModelName = lastUsed
+        } else {
+            self.selectedModelName = WhisperModel.openaiTurbo.name
+        }
         super.init()
         try? FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
         refreshInstalled()
@@ -352,8 +338,8 @@ extension ModelManager: URLSessionDownloadDelegate {
                 self.lastDownloadErrors[model.name] = "\(model.displayName): server returned HTTP \(http.statusCode)"
                 return
             }
-            // Hash off the main actor — for the 3 GB ivritLarge model this is
-            // a multi-second blocking read, and we don't want to freeze the UI
+            // Hash off the main actor — for a multi-GB model this is a
+            // multi-second blocking read, and we don't want to freeze the UI
             // (progress sheet, settings list) while it runs.
             let expected = model.sha256
             do {

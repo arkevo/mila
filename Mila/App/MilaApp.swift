@@ -1674,23 +1674,19 @@ struct MilaApp: App {
         CommandLine.arguments.contains { $0 == "--uitests" || $0.hasPrefix("--ui-test") }
     }
 
-    /// Pre-download the two default models on first launch:
-    ///   - ivrit.ai large-v3 (Hebrew dictation, ~3 GB)
-    ///   - OpenAI turbo (English dictation, ~1.6 GB)
-    /// We start them in parallel — `ModelManager` queues them through the
-    /// same `URLSession` so they don't actually saturate the network, and
-    /// the in-app banner shows whichever is currently selected.
+    /// Pre-download the catalog models on first launch — today just OpenAI
+    /// large-v3-turbo (~1.6 GB, multilingual: Hebrew and English dictation
+    /// alike). Its CoreML encoder follows via the post-install hook in
+    /// `ModelManager`. Progress shows in the in-app banner.
     private func ensureDefaultModelsInstalled() {
         // Skip the multi-GB local model downloads + CoreML prep entirely for
         // users who've opted into the remote backend — they don't need any
         // local weights. (The Models tab still offers manual downloads, and
         // switching back to local re-triggers this on next launch.)
         guard !remoteTranscriptionSettings.isActive else { return }
-        modelManager.setSelected(WhisperModel.ivritLarge)
-        for model in [WhisperModel.ivritLarge, WhisperModel.openaiTurbo] {
-            if !modelManager.isInstalled(model) && modelManager.downloads[model.name] == nil {
-                modelManager.download(model)
-            }
+        for model in WhisperModel.all
+        where !modelManager.isInstalled(model) && modelManager.downloads[model.name] == nil {
+            modelManager.download(model)
         }
         // Pick up any sibling `-encoder.mlmodelc` that's missing for an
         // already-installed `.bin`. New users get the CoreML zip via the

@@ -168,9 +168,9 @@ private struct RecordingContextMenu: ViewModifier {
     }
 
     /// Switch the recording's stored language and re-enqueue it. The
-    /// `TranscriptionService` reads `recording.language` to pick the right
-    /// model (ivrit.ai for Hebrew, OpenAI for English), so updating the
-    /// store before enqueueing is enough to re-run with the other model.
+    /// `TranscriptionService` reads `recording.language` for the model /
+    /// decoding hint (and the remote model id), so updating the store before
+    /// enqueueing is enough to re-run in the other language.
     private func retranscribe(_ recording: Recording, in language: RecordingLanguage) {
         // Gate before mutating the store: a busy (active/queued) recording must
         // not have its status/language flipped under an in-flight pass, because

@@ -216,7 +216,7 @@ final class TranscriptionServiceTests: XCTestCase {
         XCTAssertEqual(stored.status, .completed)
         XCTAssertEqual(stored.fullText, "שלום")
         XCTAssertEqual(stored.segments.count, 1)
-        XCTAssertEqual(stored.modelName, WhisperModel.ivritLarge.displayName)
+        XCTAssertEqual(stored.modelName, WhisperModel.openaiTurbo.displayName)
         XCTAssertNil(service.activeRecordingID)
         XCTAssertTrue(service.pendingIDs.isEmpty)
     }
@@ -642,8 +642,8 @@ final class TranscriptionServiceTests: XCTestCase {
     // MARK: - Model gating
 
     func test_no_model_installed_marks_recording_failed() async throws {
-        try manager.delete(.ivritLarge)
-        XCTAssertFalse(manager.isInstalled(.ivritLarge))
+        try manager.delete(.openaiTurbo)
+        XCTAssertFalse(manager.isInstalled(.openaiTurbo))
 
         let fixture = try TestRecordingFixture.make(in: store, title: "Skipped")
         service.enqueue(fixture.recording)
@@ -775,8 +775,8 @@ final class TranscriptionServiceTests: XCTestCase {
 
     /// Drives the right-click "Re-transcribe in [other language]" path: the
     /// caller flips `recording.language` from `"he"` to `"en"` and re-enqueues.
-    /// The service must pick that up and load the OpenAI model on the second
-    /// pass instead of the ivrit.ai one used on the first.
+    /// The service must pick that up: the second pass runs with the new
+    /// language and persists it, on the same multilingual turbo.
     func test_changing_recording_language_routes_to_other_model_on_reenqueue() async throws {
         try TestSupport.installFakeModel(into: manager, model: .openaiTurbo)
 
@@ -792,8 +792,8 @@ final class TranscriptionServiceTests: XCTestCase {
         await service.waitForIdle()
         let firstLoad = await stub.loadedModel
         XCTAssertEqual(firstLoad?.lastPathComponent,
-                       manager.url(for: .ivritLarge).lastPathComponent,
-                       "First pass should hit the Hebrew model")
+                       manager.url(for: .openaiTurbo).lastPathComponent,
+                       "First (Hebrew) pass runs on the multilingual turbo too")
 
         // Flip the language + re-enqueue through the production chokepoint.
         // (Previously this clobbered the store with a stale snapshot via

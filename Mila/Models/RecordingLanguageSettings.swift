@@ -3,18 +3,17 @@ import Combine
 
 /// The language a freshly-started voice memo / app-audio recording will be
 /// transcribed in. Surfaced in the toolbar as a flag dropdown so users can
-/// flip between Hebrew (ivrit.ai model) and English (OpenAI model) without
-/// digging into Settings.
+/// flip between Hebrew and English without digging into Settings.
 ///
 /// Persisted to `UserDefaults` so the choice sticks across launches.
 /// The language is always an explicit choice — there is deliberately no
 /// auto-detect option. Detection sounds free but isn't: it can only be as good
-/// as the model behind it, and the model itself is picked *from* this setting
-/// (Hebrew → the ivrit.ai finetune, English → the multilingual one, and the
-/// same split for a remote endpoint's two model ids). "Let the model decide"
-/// therefore meant "guess which specialist to ask before knowing the
-/// language", which produced worse transcripts than simply saying which
-/// language you're about to speak. Legacy `"auto"` values are read as Hebrew.
+/// as the model behind it, and this setting is what the model is told — it is
+/// whisper's decoding language hint locally, and for a remote endpoint it
+/// picks between the two model ids. "Let the model decide" therefore meant
+/// "guess before knowing the language", which produced worse transcripts than
+/// simply saying which language you're about to speak. Legacy `"auto"` values
+/// are read as Hebrew.
 enum RecordingLanguage: String, CaseIterable, Identifiable, Codable {
     case hebrew = "he"
     case english = "en"

@@ -109,7 +109,7 @@ final class TranscriptionServicePrewarmTests: XCTestCase {
         // Wipe the fake model so the manager reports nothing installed.
         // setSelected to a model that wasn't installed; `isInstalled`
         // returns false → prewarm should bail before calling the engine.
-        let url = manager.url(for: .ivritLarge)
+        let url = manager.url(for: .openaiTurbo)
         try? FileManager.default.removeItem(at: url)
         manager.refreshInstalled()
 

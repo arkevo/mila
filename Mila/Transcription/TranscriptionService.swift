@@ -265,10 +265,11 @@ final class TranscriptionService: ObservableObject {
     /// Used by dictation. Bypasses the queue — the engine actor still
     /// serializes work internally so this just waits its turn.
     ///
-    /// The model is chosen based on `language`: Hebrew goes to ivrit.ai,
-    /// English (and anything else) goes to the OpenAI turbo. If the
-    /// language-best model isn't installed yet (download still in flight),
-    /// we fall back to whatever's selected so the user gets *some* transcript.
+    /// The model comes from `ModelManager.model(for:)` — every language runs
+    /// on the multilingual OpenAI turbo, with `language` passed to whisper as
+    /// the decoding hint. If that model isn't installed yet (download still in
+    /// flight), we fall back to whatever's selected so the user gets *some*
+    /// transcript.
     ///
     /// `audioCtx` is forwarded to the engine — see
     /// `TranscribingEngine.transcribe` for semantics. Defaults to `0`

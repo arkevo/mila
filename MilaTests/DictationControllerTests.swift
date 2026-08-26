@@ -21,7 +21,6 @@ final class DictationControllerTests: XCTestCase {
         store = RecordingStore(rootDirectory: tempRoot)
         manager = ModelManager(modelsDirectory: tempRoot.appendingPathComponent("Models"))
         savedSelection = UserDefaults.standard.string(forKey: "selectedModelName")
-        try TestSupport.installFakeModel(into: manager, model: .ivritLarge)
         try TestSupport.installFakeModel(into: manager, model: .openaiTurbo)
         stub = StubWhisperEngine()
         service = TranscriptionService(store: store, modelManager: manager, diarizationSettings: DiarizationSettings(defaults: .init(suiteName: "DictationControllerTests.diarization")!), remoteSettings: TestSupport.isolatedRemoteSettings(label: "DictationControllerTests"), engine: stub)
@@ -42,12 +41,10 @@ final class DictationControllerTests: XCTestCase {
         try await super.tearDown()
     }
 
-    /// `transcribeOnce` must route Hebrew audio to the ivrit.ai model and
-    /// English audio to the OpenAI turbo, even when a different model is
-    /// "selected" globally. This is the dictation-language plumbing the new
-    /// per-language hotkeys depend on.
-    func test_transcribe_once_uses_language_specific_model() async {
-        manager.setSelected(.ivritLarge)
+    /// `transcribeOnce` resolves the model through the language-routing path
+    /// (`ModelManager.model(for:)`), which the per-language dictation hotkeys
+    /// depend on. English lands on the OpenAI turbo.
+    func test_transcribe_once_loads_turbo_for_english() async {
         await stub.setDefaultCanned([
             TranscriptSegment(start: 0, end: 1, text: "hello world")
         ])
@@ -61,8 +58,9 @@ final class DictationControllerTests: XCTestCase {
                        "English dictation must load the OpenAI turbo model")
     }
 
-    func test_transcribe_once_routes_hebrew_to_ivrit_model() async {
-        manager.setSelected(.openaiTurbo)
+    /// Hebrew dictation runs on the same multilingual turbo as English — the
+    /// 3 GB ivrit.ai finetune is gone, so nothing may try to load it.
+    func test_transcribe_once_loads_turbo_for_hebrew() async {
         await stub.setDefaultCanned([
             TranscriptSegment(start: 0, end: 1, text: "שלום עולם")
         ])
@@ -72,8 +70,8 @@ final class DictationControllerTests: XCTestCase {
 
         let loaded = await stub.loadedModel
         XCTAssertEqual(loaded?.lastPathComponent,
-                       manager.url(for: .ivritLarge).lastPathComponent,
-                       "Hebrew dictation must load the ivrit.ai large-v3 model")
+                       manager.url(for: .openaiTurbo).lastPathComponent,
+                       "Hebrew dictation must load the OpenAI large-v3-turbo model")
     }
 
     /// The TranscriptionService must forward `shutdown` to the engine. This

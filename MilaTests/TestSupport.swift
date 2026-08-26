@@ -99,12 +99,12 @@ enum TestSupport {
         return url
     }
 
-    /// Write a fake "model" file so `ModelManager.isInstalled(.ivritLarge)` returns true.
+    /// Write a fake "model" file so `ModelManager.isInstalled(.openaiTurbo)` returns true.
     /// The file is intentionally garbage — only `WhisperEngine` would care, and
     /// tests use `StubWhisperEngine`.
     @MainActor
     static func installFakeModel(into manager: ModelManager,
-                                 model: WhisperModel = .ivritLarge) throws {
+                                 model: WhisperModel = .openaiTurbo) throws {
         manager.setSelected(model)
         let url = manager.url(for: model)
         try Data("not-a-real-model-just-for-tests".utf8).write(to: url)

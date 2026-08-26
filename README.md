@@ -1,11 +1,9 @@
 # Mila
 
 A native macOS app that records, dictates, and transcribes locally on your Mac
-— no audio leaves the device. Hebrew transcription is powered by the
-[ivrit.ai `large-v3` finetune](https://huggingface.co/ivrit-ai/whisper-large-v3-ggml)
-of Whisper, English by
-[OpenAI's `large-v3-turbo`](https://huggingface.co/ggerganov/whisper.cpp), both
-running through `whisper.cpp` (GPU via Metal).
+— no audio leaves the device. Transcription in Hebrew and English is powered by
+[OpenAI's `large-v3-turbo`](https://huggingface.co/ggerganov/whisper.cpp)
+Whisper model running through `whisper.cpp` (GPU via Metal).
 
 ## Features
 
@@ -14,11 +12,11 @@ running through `whisper.cpp` (GPU via Metal).
   Slack, etc.) via `ScreenCaptureKit` — no virtual audio device required.
 - **Record meetings** = mic + system audio mixed into one mono 16 kHz WAV file.
 - **Dictate in two languages** with separate global hotkeys:
-    - `⌘2` — English dictation (OpenAI `large-v3-turbo`)
-    - `⌘3` — Hebrew dictation (ivrit.ai `large-v3`)
+    - `⌘2` — English dictation
+    - `⌘3` — Hebrew dictation
   Both hotkeys are user-configurable in **Settings → General**.
-- **Transcribe on-device** with ivrit.ai `large-v3` (Hebrew) or OpenAI
-  `large-v3-turbo` (English / multilingual). Audio never leaves your Mac.
+- **Transcribe on-device** with OpenAI `large-v3-turbo` (Hebrew, English,
+  and other languages). Audio never leaves your Mac.
 - **Transcribe on a remote server** — point Mila at any OpenAI-compatible
   `/v1/audio/transcriptions` endpoint (OpenAI's hosted Whisper API, or a
   self-hosted server) via **Settings → Models → Backend**. Useful on
@@ -53,14 +51,14 @@ To **run** Mila:
 - **Apple Silicon (M-series) strongly recommended.** Transcription runs on the
   Metal GPU (`whisper.cpp`) and speaker diarization on MPS/CPU (pyannote). Intel
   Macs fall back to CPU and are much slower.
-- **Disk:** ~4.6 GB for the two default Whisper models, downloaded on first
-  launch (ivrit.ai `large-v3` ~3.0 GB + OpenAI `large-v3-turbo` ~1.6 GB). Add
-  ~1 GB more if you enable speaker diarization (bundled Python runtime plus a
-  torch download on first enable).
+- **Disk:** ~2.8 GB for the default Whisper model, downloaded on first launch
+  (OpenAI `large-v3-turbo` ~1.6 GB + its CoreML encoder ~1.2 GB). Add ~1 GB
+  more if you enable speaker diarization (bundled Python runtime plus a torch
+  download on first enable).
 - **Memory (approximate):** 16 GB unified memory recommended. 8 GB is workable
-  for plain transcription but tight with diarization. Rough working set: Hebrew
-  `large-v3` ~3.5–4 GB, English `large-v3-turbo` ~1.5–2 GB, speaker diarization
-  adds ~1–2 GB. (RAM figures are approximate guidance, not a hard spec.)
+  for plain transcription but tight with diarization. Rough working set:
+  `large-v3-turbo` ~1.5–2 GB, speaker diarization adds ~1–2 GB. (RAM figures
+  are approximate guidance, not a hard spec.)
 - **Live (real-time) mode** — running transcription and diarization concurrently
   in real time is the heaviest path. It's **automatically disabled on MacBook
   Air–class chips** (they can't keep up in real time) and recommended on M-series
@@ -94,14 +92,11 @@ release. The checksum is pinned in `Packages/WhisperBinary/Package.swift`.
 
 ## Models
 
-On first launch the app downloads both default models in the background:
+On first launch the app downloads the default model in the background:
 
-- `ivrit-ai/whisper-large-v3-ggml` — Hebrew (~3.0 GB). Empirically more
-  accurate on Hebrew speech than the smaller `large-v3-turbo` finetune,
-  which is why we ship the larger one despite the size and ~2× inference
-  cost.
 - `openai whisper-large-v3-turbo` (the `ggerganov/whisper.cpp` build) —
-  English / multilingual (~1.6 GB).
+  multilingual, used for Hebrew and English alike (~1.6 GB), plus its CoreML
+  encoder (~1.2 GB) so the encoder runs on the Neural Engine.
 
 You can monitor progress in the in-app banner or pre-download from the CLI:
 
@@ -113,11 +108,14 @@ Models live at:
 
 ```
 ~/Library/Application Support/Mila/Models/
-    ivrit-ai-whisper-large-v3.bin
     openai-whisper-large-v3-turbo.bin
+    openai-whisper-large-v3-turbo-encoder.mlmodelc/
 ```
 
-The app picks them up from that directory automatically.
+The app picks them up from that directory automatically. If you upgraded from
+a version that also shipped the ivrit.ai `large-v3` model, its
+`ivrit-ai-whisper-large-v3.bin` / `-encoder.mlmodelc` are no longer used and
+can be deleted by hand to reclaim ~4 GB.
 
 ### Remote transcription (optional)
 
