@@ -59,53 +59,55 @@ struct VoiceMemosSettingsTab: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                header
 
-            // Always render the master toggle — otherwise a user who enabled
-            // sync and then lost the library (iCloud off, etc.) would have no
-            // control left to turn the integration back off.
-            Toggle("Sync recordings from iPhone Voice Memos", isOn: $settings.isEnabled)
-                .toggleStyle(.switch)
+                // Always render the master toggle — otherwise a user who enabled
+                // sync and then lost the library (iCloud off, etc.) would have no
+                // control left to turn the integration back off.
+                Toggle("Sync recordings from iPhone Voice Memos", isOn: $settings.isEnabled)
+                    .toggleStyle(.switch)
 
-            if settings.isEnabled {
-                switch library.availability {
-                case .available:
-                    folderPicker
-                    startDatePicker
-                    statusFooter
-                case .databaseMissing:
-                    // We can read the folder (grant or legacy FDA in place)
-                    // but there's no library there — iCloud sync off, or the
-                    // user granted the wrong folder.
-                    unavailableNotice
-                case .accessDenied:
-                    grantAccessNotice
+                if settings.isEnabled {
+                    switch library.availability {
+                    case .available:
+                        folderPicker
+                        startDatePicker
+                        statusFooter
+                    case .databaseMissing:
+                        // We can read the folder (grant or legacy FDA in place)
+                        // but there's no library there — iCloud sync off, or the
+                        // user granted the wrong folder.
+                        unavailableNotice
+                    case .accessDenied:
+                        grantAccessNotice
+                    }
                 }
+                Spacer()
             }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .task(id: "\(settings.isEnabled)-\(settings.grantedFolderURL?.path ?? "")") {
-            if settings.isEnabled { await loadFolders() }
-        }
-        .confirmationDialog(
-            "Remove imported recordings?",
-            isPresented: Binding(
-                get: { pendingCleanup != nil },
-                set: { if !$0 { pendingCleanup = nil } }
-            ),
-            titleVisibility: .visible,
-            presenting: pendingCleanup
-        ) { cleanup in
-            Button("Move \(cleanup.count) to Recently Deleted", role: .destructive) {
-                store.softDeleteVoiceMemos(fromFolderID: cleanup.folderID)
-                pendingCleanup = nil
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .task(id: "\(settings.isEnabled)-\(settings.grantedFolderURL?.path ?? "")") {
+                if settings.isEnabled { await loadFolders() }
             }
-            Button("Keep Recordings", role: .cancel) { pendingCleanup = nil }
-        } message: { cleanup in
-            Text("Move the \(cleanup.count) recording\(cleanup.count == 1 ? "" : "s") imported from “\(cleanup.name)” to Recently Deleted? "
-                 + "You can restore them there, and re-syncing this folder later won't create duplicates.")
+            .confirmationDialog(
+                "Remove imported recordings?",
+                isPresented: Binding(
+                    get: { pendingCleanup != nil },
+                    set: { if !$0 { pendingCleanup = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pendingCleanup
+            ) { cleanup in
+                Button("Move \(cleanup.count) to Recently Deleted", role: .destructive) {
+                    store.softDeleteVoiceMemos(fromFolderID: cleanup.folderID)
+                    pendingCleanup = nil
+                }
+                Button("Keep Recordings", role: .cancel) { pendingCleanup = nil }
+            } message: { cleanup in
+                Text("Move the \(cleanup.count) recording\(cleanup.count == 1 ? "" : "s") imported from “\(cleanup.name)” to Recently Deleted? "
+                     + "You can restore them there, and re-syncing this folder later won't create duplicates.")
+            }
         }
     }
 

@@ -197,94 +197,96 @@ private struct AudioSettingsTab: View {
     private static let autoTag = "__auto__"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Input source")
-                .font(.title3.weight(.semibold))
-            Text("Choose which microphone Mila reads from. Leave on Automatic to follow whatever macOS uses as its system default. Pin to a specific device if your default is a virtual mic (Krisp, BlackHole, Zoom Audio, etc.) and you'd rather record from the raw hardware.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Picker("Input", selection: binding) {
-                Text("Automatic (system default)")
-                    .tag(Self.autoTag)
-                ForEach(devices, id: \.uid) { device in
-                    Text(label(for: device))
-                        .tag(device.uid)
-                }
-                if let pinned = settings.preferredUID,
-                   devices.first(where: { $0.uid == pinned }) == nil {
-                    Text("Saved device (unplugged) — \(pinned)")
-                        .tag(pinned)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 360)
-
-            Button("Refresh device list") { refresh() }
-                .buttonStyle(.borderless)
-
-            Divider().padding(.vertical, 4)
-
-            // Live VU meter for the currently-selected input. Lets users
-            // confirm the chosen device is actually hearing them before
-            // they record — the most common "why is my transcript empty"
-            // failure mode comes from picking the wrong (or muted) input.
-            // Paused during active recording so we don't fight the real
-            // MicrophoneRecorder for the device.
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "waveform")
-                        .foregroundStyle(.tint)
-                    Text("Input level")
-                        .font(.callout.weight(.semibold))
-                    Spacer()
-                    Text(meterStatusText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                LevelMeterView(level: monitor.level,
-                               isLive: monitor.isRunning && !actions.isRecording)
-                    .frame(maxWidth: 360)
-            }
-
-            Divider().padding(.vertical, 4)
-
-            // Adaptive digital gain. Default ON — most users with a built-in
-            // MacBook mic have their system input volume well below
-            // unity, which puts speech below the live VAD cutoff (0.012)
-            // and starves the live transcript pane. The gain controller
-            // boosts low-volume capture to a target observed RMS uniformly
-            // across the saved WAV and the live feed.
-            VStack(alignment: .leading, spacing: 4) {
-                Toggle("Automatic mic gain adjustment",
-                       isOn: $settings.adaptiveGainEnabled)
-                    .toggleStyle(.switch)
-                Text("Boosts low-volume microphone input automatically when speech is captured. Disable if you prefer manual control of input levels.")
-                    .font(.caption)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Input source")
+                    .font(.title3.weight(.semibold))
+                Text("Choose which microphone Mila reads from. Leave on Automatic to follow whatever macOS uses as its system default. Pin to a specific device if your default is a virtual mic (Krisp, BlackHole, Zoom Audio, etc.) and you'd rather record from the raw hardware.")
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-            }
 
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear(perform: refresh)
-        .task {
-            // Bring up (or refresh) the monitor when the user opens this tab.
-            // Settings is a separate window so we can't rely on Home's
-            // lifecycle — each window manages its own start/stop.
-            await refreshMonitor()
-        }
-        .onDisappear {
-            Task { await monitor.stop() }
-        }
-        .onChange(of: settings.preferredUID) { _, newValue in
-            monitor.preferredUID = newValue
-            Task { await monitor.restart() }
-        }
-        .onChange(of: actions.isRecording) { _, _ in
-            Task { await refreshMonitor() }
+                Picker("Input", selection: binding) {
+                    Text("Automatic (system default)")
+                        .tag(Self.autoTag)
+                    ForEach(devices, id: \.uid) { device in
+                        Text(label(for: device))
+                            .tag(device.uid)
+                    }
+                    if let pinned = settings.preferredUID,
+                       devices.first(where: { $0.uid == pinned }) == nil {
+                        Text("Saved device (unplugged) — \(pinned)")
+                            .tag(pinned)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 360)
+
+                Button("Refresh device list") { refresh() }
+                    .buttonStyle(.borderless)
+
+                Divider().padding(.vertical, 4)
+
+                // Live VU meter for the currently-selected input. Lets users
+                // confirm the chosen device is actually hearing them before
+                // they record — the most common "why is my transcript empty"
+                // failure mode comes from picking the wrong (or muted) input.
+                // Paused during active recording so we don't fight the real
+                // MicrophoneRecorder for the device.
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "waveform")
+                            .foregroundStyle(.tint)
+                        Text("Input level")
+                            .font(.callout.weight(.semibold))
+                        Spacer()
+                        Text(meterStatusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    LevelMeterView(level: monitor.level,
+                                   isLive: monitor.isRunning && !actions.isRecording)
+                        .frame(maxWidth: 360)
+                }
+
+                Divider().padding(.vertical, 4)
+
+                // Adaptive digital gain. Default ON — most users with a built-in
+                // MacBook mic have their system input volume well below
+                // unity, which puts speech below the live VAD cutoff (0.012)
+                // and starves the live transcript pane. The gain controller
+                // boosts low-volume capture to a target observed RMS uniformly
+                // across the saved WAV and the live feed.
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Automatic mic gain adjustment",
+                           isOn: $settings.adaptiveGainEnabled)
+                        .toggleStyle(.switch)
+                    Text("Boosts low-volume microphone input automatically when speech is captured. Disable if you prefer manual control of input levels.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onAppear(perform: refresh)
+            .task {
+                // Bring up (or refresh) the monitor when the user opens this tab.
+                // Settings is a separate window so we can't rely on Home's
+                // lifecycle — each window manages its own start/stop.
+                await refreshMonitor()
+            }
+            .onDisappear {
+                Task { await monitor.stop() }
+            }
+            .onChange(of: settings.preferredUID) { _, newValue in
+                monitor.preferredUID = newValue
+                Task { await monitor.restart() }
+            }
+            .onChange(of: actions.isRecording) { _, _ in
+                Task { await refreshMonitor() }
+            }
         }
     }
 
@@ -343,61 +345,63 @@ private struct GeneralSettingsTab: View {
     @State private var lastError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Dictation hotkeys")
-                .font(.title3.weight(.semibold))
-            Text("Press the hotkey anywhere in macOS to start dictating. Press it again to stop, transcribe, and paste at the cursor. Click a binding to record a new one; press Esc to cancel.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            VStack(spacing: 8) {
-                ForEach(HotkeyAction.allCases) { action in
-                    HotkeyRow(action: action,
-                              isRecording: recordingAction == action,
-                              // Live-registration warning: register() can fail
-                              // (another app owns the combo globally) and the
-                              // binding then LOOKS active while doing nothing.
-                              // Suppressed mid-capture — suspendAll() has
-                              // deliberately parked everything then.
-                              showsInactiveWarning: recordingAction == nil
-                                  && !HotkeyManager.shared.isRegistered(action),
-                              onStartRecording: {
-                                  recordingAction = action
-                                  // Park our own registrations so the pressed
-                                  // combo reaches the capture field's keyDown —
-                                  // Carbon otherwise consumes a currently-bound
-                                  // combo and STARTS DICTATION mid-capture.
-                                  HotkeyManager.shared.suspendAll()
-                              },
-                              onCaptured: { applyCapture($0, for: action) },
-                              onCancel: {
-                                  recordingAction = nil
-                                  HotkeyManager.shared.resumeAll()
-                              },
-                              onReset: { resetToDefault(action) })
-                }
-            }
-
-            if let lastError {
-                Text(lastError)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Dictation hotkeys")
+                    .font(.title3.weight(.semibold))
+                Text("Press the hotkey anywhere in macOS to start dictating. Press it again to stop, transcribe, and paste at the cursor. Click a binding to record a new one; press Esc to cancel.")
                     .font(.callout)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: 8) {
+                    ForEach(HotkeyAction.allCases) { action in
+                        HotkeyRow(action: action,
+                                  isRecording: recordingAction == action,
+                                  // Live-registration warning: register() can fail
+                                  // (another app owns the combo globally) and the
+                                  // binding then LOOKS active while doing nothing.
+                                  // Suppressed mid-capture — suspendAll() has
+                                  // deliberately parked everything then.
+                                  showsInactiveWarning: recordingAction == nil
+                                      && !HotkeyManager.shared.isRegistered(action),
+                                  onStartRecording: {
+                                      recordingAction = action
+                                      // Park our own registrations so the pressed
+                                      // combo reaches the capture field's keyDown —
+                                      // Carbon otherwise consumes a currently-bound
+                                      // combo and STARTS DICTATION mid-capture.
+                                      HotkeyManager.shared.suspendAll()
+                                  },
+                                  onCaptured: { applyCapture($0, for: action) },
+                                  onCancel: {
+                                      recordingAction = nil
+                                      HotkeyManager.shared.resumeAll()
+                                  },
+                                  onReset: { resetToDefault(action) })
+                    }
+                }
+
+                if let lastError {
+                    Text(lastError)
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                }
+
+                Divider().padding(.vertical, 4)
+
+                UpdatesSettingsSection()
+
+                Spacer()
             }
-
-            Divider().padding(.vertical, 4)
-
-            UpdatesSettingsSection()
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onDisappear {
-            // Window closed mid-capture: don't leave the app's hotkeys
-            // parked forever.
-            if recordingAction != nil {
-                recordingAction = nil
-                HotkeyManager.shared.resumeAll()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onDisappear {
+                // Window closed mid-capture: don't leave the app's hotkeys
+                // parked forever.
+                if recordingAction != nil {
+                    recordingAction = nil
+                    HotkeyManager.shared.resumeAll()
+                }
             }
         }
     }
@@ -2150,57 +2154,59 @@ private struct DiarizationSettingsTabContent: View {
     @ObservedObject var bootstrap: DiarizationBootstrap
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Speaker diarization")
-                .font(.title3.weight(.semibold))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Speaker diarization")
+                    .font(.title3.weight(.semibold))
 
-            Text("Identify who's speaking in your recordings. Required components install automatically on first enable; the check below confirms the local pipeline is ready.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text("Identify who's speaking in your recordings. Required components install automatically on first enable; the check below confirms the local pipeline is ready.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("Enable speaker diarization", isOn: $diarization.isEnabled)
-                .accessibilityIdentifier("speakers.enable.toggle")
+                Toggle("Enable speaker diarization", isOn: $diarization.isEnabled)
+                    .accessibilityIdentifier("speakers.enable.toggle")
 
-            if showingBootstrapCard {
-                bootstrapCard
-                    .accessibilityIdentifier("speakers.bootstrap.card")
-            } else {
-                healthCard
-                    .accessibilityIdentifier("speakers.health.card")
-            }
-
-            if let error = diarization.healthCheckResult?.error,
-               diarization.healthCheckResult?.ok == false,
-               !showingBootstrapCard {
-                ScrollView {
-                    Text(error)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                if showingBootstrapCard {
+                    bootstrapCard
+                        .accessibilityIdentifier("speakers.bootstrap.card")
+                } else {
+                    healthCard
+                        .accessibilityIdentifier("speakers.health.card")
                 }
-                .frame(maxHeight: 100)
-                .padding(8)
-                .background(.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+
+                if let error = diarization.healthCheckResult?.error,
+                   diarization.healthCheckResult?.ok == false,
+                   !showingBootstrapCard {
+                    ScrollView {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 100)
+                    .padding(8)
+                    .background(.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                }
+
+                // Stable accessibility probe for XCUITest — reads "ok" iff
+                // the health-check result is ok. Zero-size, not visible to
+                // humans. Lets the automated GUI test wait deterministically
+                // for "Speakers self-heals to green" without scraping labels.
+                Color.clear
+                    .frame(width: 0, height: 0)
+                    .accessibilityIdentifier("speakers.health.ok.probe")
+                    .accessibilityLabel(diarization.healthCheckResult?.ok == true ? "ok" : "not_ok")
+
+                Divider()
+
+                KnownSpeakersSection()
+
+                Spacer()
             }
-
-            // Stable accessibility probe for XCUITest — reads "ok" iff
-            // the health-check result is ok. Zero-size, not visible to
-            // humans. Lets the automated GUI test wait deterministically
-            // for "Speakers self-heals to green" without scraping labels.
-            Color.clear
-                .frame(width: 0, height: 0)
-                .accessibilityIdentifier("speakers.health.ok.probe")
-                .accessibilityLabel(diarization.healthCheckResult?.ok == true ? "ok" : "not_ok")
-
-            Divider()
-
-            KnownSpeakersSection()
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Show the bootstrap progress card whenever a bundled runtime exists
