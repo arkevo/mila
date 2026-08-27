@@ -18,6 +18,7 @@ All build commands run from the repo root (wherever your checkout lives).
 | Generate Xcode project | `make project` | `Mila.xcodeproj` (regenerated from `project.yml`) |
 | Debug build | `make build` | `build/Build/Products/Debug/Mila.app` |
 | Build **and launch** | `make run` | builds Debug, then `open`s it |
+| Build **and install** | `make install` | builds Debug, then `scripts/install-debug.sh` → `/Applications/Mila.app` re-signed with the Mila Local Dev cert (TCC grants survive rebuilds) |
 | Release build | `make release-build` | `build-release/Build/Products/Release/Mila.app` |
 | Self-signed DMG | `make dmg VERSION=<x.y.z>` | `Mila-<x.y.z>.dmg` (Mila Local Dev cert if present, else ad-hoc) |
 | Run tests | `make test` | XCTest run |
@@ -52,7 +53,7 @@ make dmg VERSION="$VERSION"
   ln -s /path/to/main-checkout/Mila/Resources/PythonRuntime <worktree>/Mila/Resources/PythonRuntime
   ```
   The `.gitignore` entry has no trailing slash so it matches the symlink too — never commit it (it points at an absolute path on one machine).
-- **Models are NOT bundled.** Whisper weights download at first launch into `~/Library/Application Support/Mila/Models/` (or pre-fetch with `make models`, ~4.6 GB). A fresh build with no models will prompt/download on first transcription.
+- **Models are NOT bundled.** Whisper weights download at first launch into `~/Library/Application Support/Mila/Models/` (or pre-fetch with `make models`, ~1.6 GB for `large-v3-turbo`; its ~1.2 GB CoreML encoder is fetched by the app). A fresh build with no models will prompt/download on first transcription.
 - **`xcodegen` must be installed.** `make bootstrap` installs it via Homebrew if missing.
 
 ## Verifying the signature
@@ -69,7 +70,7 @@ codesign -d --entitlements - /Applications/Mila.app 2>/dev/null | grep audio-inp
 
 ## Installing a local build into /Applications
 
-A `make run`/`make dmg` build lives in the repo's `build/` folder — it runs fine but won't appear in the Applications folder. To install it like a normal app:
+A `make run`/`make dmg` build lives in the repo's `build/` folder — it runs fine but won't appear in the Applications folder, and being ad-hoc signed it re-prompts for permissions after every rebuild. `make install` is the one-step answer for a Debug build (see the table). To install a DMG build like a normal app:
 
 ```bash
 # from a DMG (preferred — matches the distributed artifact):

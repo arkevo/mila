@@ -86,6 +86,21 @@ Or do it all from the CLI:
 make run
 ```
 
+For day-to-day use, install the build instead of running it from `build/`:
+
+```bash
+make install     # Debug build → /Applications/Mila.app, signed with a persistent local cert
+```
+
+`make run` launches an ad-hoc-signed app whose code hash changes on every
+rebuild, so macOS treats each build as a new app and asks for Microphone,
+Screen Recording and Accessibility permission again (the checkbox in System
+Settings stays on but no longer matches). `make install` runs
+`scripts/install-debug.sh`, which re-signs the copy in `/Applications` with a
+self-signed "Mila Local Dev" certificate created once in your login keychain;
+grants made to that copy survive rebuilds. Launch `/Applications/Mila.app`
+(and point your Dock icon at it), not the app inside `build/`.
+
 The first build will resolve `Packages/WhisperBinary`, which downloads the
 `whisper.xcframework` (~65 MB) from the official `ggml-org/whisper.cpp` v1.8.4
 release. The checksum is pinned in `Packages/WhisperBinary/Package.swift`.

@@ -1,4 +1,4 @@
-.PHONY: all bootstrap project open build test run clean models models-coreml-tiny help dmg release-build e2e package-test bundle-diarization verify-ane
+.PHONY: all bootstrap project open build test run install clean models models-coreml-tiny help dmg release-build e2e package-test bundle-diarization verify-ane
 
 XCODEPROJ := Mila.xcodeproj
 SCHEME := Mila
@@ -22,7 +22,8 @@ help:
 	@echo "  build         - Debug build via xcodebuild"
 	@echo "  release-build - Release build into $(RELEASE_DERIVED)"
 	@echo "  test          - Run the MilaTests XCTest target"
-	@echo "  run           - Build and launch the app"
+	@echo "  run           - Build and launch the app (ad-hoc signed; macOS re-asks for permissions after every rebuild)"
+	@echo "  install       - Build, then install a stable-signed copy into /Applications (permissions survive rebuilds)"
 	@echo "  models        - Pre-download the default ggml model into ~/Library/Application Support/Mila/Models"
 	@echo "  models-coreml-tiny - Download ggml-tiny + sibling -encoder.mlmodelc into ~/.cache/whisper-coreml-test/ (for CI ANE verification test)"
 	@echo "  dmg           - Build a release DMG (VERSION=<x.y.z>) suitable for upload"
@@ -66,6 +67,16 @@ test: project check-xcode
 
 run: build
 	open $(APP)
+
+# Day-to-day way to run a local build. The Debug app in $(APP) is ad-hoc
+# signed, so its code hash changes on every rebuild and macOS TCC treats each
+# one as a new app — Microphone / Screen Recording / Accessibility grants stop
+# matching and the app re-prompts. scripts/install-debug.sh copies the build
+# to /Applications and re-signs it with the persistent "Mila Local Dev" cert
+# (created on first run), whose designated requirement is stable across
+# rebuilds. Launch /Applications/Mila.app afterwards, not $(APP).
+install: build
+	@./scripts/install-debug.sh
 
 # Local (self-hosted) check: verify an upgrade doesn't recompile the CoreML/ANE
 # encoder. Needs a real Neural Engine + an installed model + a GUI session, so
