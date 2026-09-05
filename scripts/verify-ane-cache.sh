@@ -19,7 +19,7 @@
 # ------------
 #   1. WARM:    launch the installed app, let `prewarm` load + ANE-compile the
 #               model once (populating the cache), then quit.
-#   2. UPGRADE: re-install via install-debug.sh (re-signs the bundle → new
+#   2. UPGRADE: re-install via `make install` (rebuild + re-sign → new
 #               cdhash → a genuine "new version" from the OS's point of view).
 #   3. TEST:    launch again and watch WhisperEngine's logs. PASS iff the model
 #               loads WITHOUT a "CoreML cold compile detected" line and under
@@ -48,7 +48,7 @@ LAUNCH_LOG_TIMEOUT="${LAUNCH_LOG_TIMEOUT:-240}"
 LOG_BIN="/usr/bin/log"
 
 if [[ ! -d "$APP" ]]; then
-  echo "FAIL: $APP not installed — run \`make build && ./scripts/install-debug.sh\` first" >&2
+  echo "FAIL: $APP not installed — run \`make install\` first" >&2
   exit 1
 fi
 
@@ -95,7 +95,11 @@ echo "    warm load: $(grep -o 'Loaded .* elapsed=[0-9.]*s' "$WARM_LOG" | tail -
 
 echo "==> UPGRADE phase: reinstalling (re-sign → new cdhash, simulating a version bump)"
 quit_mila
-"$ROOT/scripts/install-debug.sh" >/dev/null
+# make install = build + install-debug.sh. Going through make is required:
+# install-debug.sh deletes the ad-hoc Debug bundle after installing (so
+# Spotlight/window-restore can't relaunch it), so a standalone re-run has
+# no source bundle to copy until a rebuild recreates it.
+make -C "$ROOT" install >/dev/null
 
 echo "==> TEST phase: launching the 'upgraded' build and watching for a recompile"
 TEST_LOG="$(mktemp -t mila-ane-test)"
