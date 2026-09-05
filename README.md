@@ -83,23 +83,20 @@ make open        # opens Xcode
 Or do it all from the CLI:
 
 ```bash
-make run
+make run         # build, install into /Applications (stable-signed), launch
+make install     # same, but without launching
 ```
 
-For day-to-day use, install the build instead of running it from `build/`:
-
-```bash
-make install     # Debug build → /Applications/Mila.app, signed with a persistent local cert
-```
-
-`make run` launches an ad-hoc-signed app whose code hash changes on every
-rebuild, so macOS treats each build as a new app and asks for Microphone,
-Screen Recording and Accessibility permission again (the checkbox in System
-Settings stays on but no longer matches). `make install` runs
-`scripts/install-debug.sh`, which re-signs the copy in `/Applications` with a
-self-signed "Mila Local Dev" certificate created once in your login keychain;
-grants made to that copy survive rebuilds. Launch `/Applications/Mila.app`
-(and point your Dock icon at it), not the app inside `build/`.
+Both route through `scripts/install-debug.sh`, which copies the Debug build
+into `/Applications/Mila.app` and re-signs it with a self-signed "Mila Local
+Dev" certificate created once in your login keychain. Microphone, Screen
+Recording and Accessibility grants attach to that stable identity, so they
+survive rebuilds. The ad-hoc-signed bundle inside `build/` is deleted after
+each install: its code hash changes on every rebuild, so macOS would treat it
+as a brand-new app and re-prompt for every permission (the checkbox in System
+Settings stays on but no longer matches) — and Spotlight or window-restore
+can silently relaunch a lingering copy. Launch `/Applications/Mila.app` (and
+point your Dock icon at it).
 
 The first build will resolve `Packages/WhisperBinary`, which downloads the
 `whisper.xcframework` (~65 MB) from the official `ggml-org/whisper.cpp` v1.8.4

@@ -17,7 +17,7 @@ All build commands run from the repo root (wherever your checkout lives).
 |---|---|---|
 | Generate Xcode project | `make project` | `Mila.xcodeproj` (regenerated from `project.yml`) |
 | Debug build | `make build` | `build/Build/Products/Debug/Mila.app` |
-| Build **and launch** | `make run` | builds Debug, then `open`s it |
+| Build **and launch** | `make run` | `make install`, then opens `/Applications/Mila.app` (never the ad-hoc `build/` copy) |
 | Build **and install** | `make install` | builds Debug, then `scripts/install-debug.sh` → `/Applications/Mila.app` re-signed with the Mila Local Dev cert (TCC grants survive rebuilds) |
 | Release build | `make release-build` | `build-release/Build/Products/Release/Mila.app` |
 | Self-signed DMG | `make dmg VERSION=<x.y.z>` | `Mila-<x.y.z>.dmg` (Mila Local Dev cert if present, else ad-hoc) |
@@ -70,7 +70,7 @@ codesign -d --entitlements - /Applications/Mila.app 2>/dev/null | grep audio-inp
 
 ## Installing a local build into /Applications
 
-A `make run`/`make dmg` build lives in the repo's `build/` folder — it runs fine but won't appear in the Applications folder, and being ad-hoc signed it re-prompts for permissions after every rebuild. `make install` is the one-step answer for a Debug build (see the table). To install a DMG build like a normal app:
+For Debug builds, `make run` and `make install` already install into `/Applications` with the stable Mila Local Dev cert and delete the ad-hoc bundle from `build/` afterwards — a lingering ad-hoc copy is dangerous, because its per-build code hash can never satisfy a TCC checkbox, yet Spotlight or window-restore can relaunch it (that was beads mila-rg4). A `make dmg` build lives in `build-release/` and is not installed anywhere. To install a DMG build like a normal app:
 
 ```bash
 # from a DMG (preferred — matches the distributed artifact):

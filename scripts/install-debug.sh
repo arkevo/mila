@@ -126,3 +126,11 @@ echo "designated requirement:"
 codesign --display --requirements - "$APP_DST" 2>&1 | grep -v Executable
 codesign --verify --verbose "$APP_DST" 2>&1 | tail -2
 echo "installed: $APP_DST"
+
+# 6. Delete the ad-hoc Debug bundle the copy came from. Spotlight indexes
+#    it and macOS window-restore can relaunch it, and its per-build cdhash
+#    identity can never satisfy a TCC checkbox — a lingering copy is exactly
+#    how Accessibility grants "stop working" (beads mila-rg4). The next
+#    `make build` recreates it.
+rm -rf "$APP_SRC"
+echo "removed ad-hoc Debug bundle: $APP_SRC"

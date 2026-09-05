@@ -22,7 +22,7 @@ help:
 	@echo "  build         - Debug build via xcodebuild"
 	@echo "  release-build - Release build into $(RELEASE_DERIVED)"
 	@echo "  test          - Run the MilaTests XCTest target"
-	@echo "  run           - Build and launch the app (ad-hoc signed; macOS re-asks for permissions after every rebuild)"
+	@echo "  run           - Build, install the stable-signed copy into /Applications, and launch it"
 	@echo "  install       - Build, then install a stable-signed copy into /Applications (permissions survive rebuilds)"
 	@echo "  models        - Pre-download the default ggml model into ~/Library/Application Support/Mila/Models"
 	@echo "  models-coreml-tiny - Download ggml-tiny + sibling -encoder.mlmodelc into ~/.cache/whisper-coreml-test/ (for CI ANE verification test)"
@@ -65,16 +65,19 @@ release-build: project check-xcode
 test: project check-xcode
 	xcodebuild -project $(XCODEPROJ) -scheme $(SCHEME) -configuration Debug -derivedDataPath $(DERIVED) -destination 'platform=macOS' test
 
-run: build
-	open $(APP)
+# `run` deliberately routes through `install` and never opens $(APP): the
+# Debug app there is ad-hoc signed, so its code hash changes on every rebuild
+# and macOS TCC treats each one as a new app — Microphone / Screen Recording /
+# Accessibility grants stop matching and the app re-prompts forever (the
+# checkbox in System Settings stays on but can't satisfy the new identity).
+run: install
+	open /Applications/Mila.app
 
-# Day-to-day way to run a local build. The Debug app in $(APP) is ad-hoc
-# signed, so its code hash changes on every rebuild and macOS TCC treats each
-# one as a new app — Microphone / Screen Recording / Accessibility grants stop
-# matching and the app re-prompts. scripts/install-debug.sh copies the build
-# to /Applications and re-signs it with the persistent "Mila Local Dev" cert
-# (created on first run), whose designated requirement is stable across
-# rebuilds. Launch /Applications/Mila.app afterwards, not $(APP).
+# Day-to-day way to run a local build. scripts/install-debug.sh copies the
+# build to /Applications, re-signs it with the persistent "Mila Local Dev"
+# cert (created on first run), whose designated requirement is stable across
+# rebuilds, then deletes the ad-hoc bundle from $(APP) so Spotlight or
+# window-restore can't relaunch it. Launch /Applications/Mila.app, not $(APP).
 install: build
 	@./scripts/install-debug.sh
 
